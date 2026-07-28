@@ -1,10 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
-</head>
-<body>
-$END$
-</body>
-</html>
+{% extends "contacts/base.html" %}
+
+{% block title %}Kontakty{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Kontakty</h1>
+    <span class="text-muted">{{ contacts|length }} rekordów</span>
+</div>
+
+<form method="get" class="row g-2 mb-4">
+    <div class="col">
+        <input type="search" name="q" value="{{ query }}" class="form-control"
+               placeholder="Szukaj po imieniu, nazwisku, mailu, telefonie lub mieście">
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Szukaj</button>
+        {% if query %}
+            <a href="{% url 'contact_list' %}" class="btn btn-outline-secondary">Wyczyść</a>
+        {% endif %}
+    </div>
+</form>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>
+                        <a href="?q={{ query|urlencode }}&sort={{ sort_by_name }}"
+                           class="text-decoration-none text-dark">Nazwisko i imię</a>
+                    </th>
+                    <th>Telefon</th>
+                    <th>E-mail</th>
+                    <th>Miasto</th>
+                    <th>Status</th>
+                    <th>
+                        <a href="?q={{ query|urlencode }}&sort={{ sort_by_date }}"
+                           class="text-decoration-none text-dark">Data dodania</a>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in contacts %}
+                    <tr>
+                        <td>{{ contact.last_name }} {{ contact.first_name }}</td>
+                        <td>{{ contact.phone_number }}</td>
+                        <td>{{ contact.email }}</td>
+                        <td>{{ contact.city }}</td>
+                        <td><span class="badge text-bg-secondary">{{ contact.status }}</span></td>
+                        <td>{{ contact.created_at|date:"d.m.Y H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            {% if query %}
+                                Brak kontaktów pasujących do wyszukiwania.
+                            {% else %}
+                                Brak kontaktów.
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
