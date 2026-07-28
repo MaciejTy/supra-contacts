@@ -34,6 +34,7 @@
                     <th>E-mail</th>
                     <th>Miasto</th>
                     <th>Status</th>
+                    <th>Pogoda</th>
                     <th>
                         <a href="?q={{ query|urlencode }}&sort={{ sort_by_date }}"
                            class="text-decoration-none text-dark">Data dodania</a>
@@ -49,6 +50,7 @@
                         <td>{{ contact.email }}</td>
                         <td>{{ contact.city }}</td>
                         <td><span class="badge text-bg-secondary">{{ contact.status }}</span></td>
+                        <td class="text-nowrap text-muted small" data-city="{{ contact.city }}">…</td>
                         <td>{{ contact.created_at|date:"d.m.Y H:i" }}</td>
                         <td class="text-end text-nowrap">
                             <a href="{% url 'contact_update' contact.pk %}"
@@ -59,7 +61,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
+                        <td colspan="8" class="text-center text-muted py-4">
                             {% if query %}
                                 Brak kontaktów pasujących do wyszukiwania.
                             {% else %}
@@ -72,4 +74,34 @@
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Weather is fetched per unique city, not per contact: fifty contacts living
+// in five cities trigger five requests, and the server caches each for 30 min.
+document.addEventListener("DOMContentLoaded", () => {
+    const cells = Array.from(document.querySelectorAll("[data-city]"));
+    const cities = [...new Set(cells.map(cell => cell.dataset.city))];
+
+    cities.forEach(async city => {
+        const targets = cells.filter(cell => cell.dataset.city === city);
+        try {
+            const url = "{% url 'weather_api' %}?city=" + encodeURIComponent(city);
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error("Weather unavailable");
+            }
+            const data = await response.json();
+            targets.forEach(cell => {
+                cell.textContent = `${data.temperature}°C · ${data.humidity}% · ${data.wind_speed} km/h`;
+            });
+        } catch {
+            targets.forEach(cell => {
+                cell.textContent = "—";
+            });
+        }
+    });
+});
+</script>
 {% endblock %}

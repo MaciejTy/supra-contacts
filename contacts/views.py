@@ -1,9 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.db.models import Q
 from django.contrib import messages
+from django.http import JsonResponse
 
 from .models import Contact
 from .forms import ContactForm
+from .services import get_weather
 
 #Whitelist of allowed sort values. User input is never passed to order_by() directly,
 # so an arbitrary query string cannot reach the database layer
@@ -87,3 +89,19 @@ def contact_delete(request, pk):
     return render(request, "contacts/contact_confirm_delete.html", {
         "contact": contact,
     })
+
+def weather_api(request):
+    """Return current weather for a singe city as JSON.
+
+    Called once per unique city by the contact list page, not once per contact.
+    """
+    city = request.GET.get("city", "").strip()
+    if not city:
+        return JsonResponse({"error": "Missing city parameter."}, status=400)
+
+    weather = get_weather(city)
+    if weather is None:
+        return JsonResponse({"error": "Weather unavailable."}, status=503)
+
+    return JsonResponse(weather)
+

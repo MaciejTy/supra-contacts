@@ -7,4 +7,5 @@ urlpatterns = [
     path("add/", views.contact_create, name="contact_create"),
     path("<int:pk>/edit/", views.contact_update, name="contact_update"),
     path("<int:pk>/delete/", views.contact_delete, name="contact_delete"),
+    path("api/weather/", views.weather_api, name="weather_api"),
 ]
