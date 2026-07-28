@@ -1,7 +1,9 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
 from django.db.models import Q
+from django.contrib import messages
 
 from .models import Contact
+from .forms import ContactForm
 
 #Whitelist of allowed sort values. User input is never passed to order_by() directly,
 # so an arbitrary query string cannot reach the database layer
@@ -43,4 +45,45 @@ def contact_list(request):
     }
     return render(request, "contacts/contact_list.html", context)
 
+def contact_create(request):
+    """Handle the new contact form: render it on GET, save it on POST."""
+    if request.method == "POST":
+        form = ContactForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Kontakt został dodany")
+            return redirect("contact_list")
+    else:
+        form = ContactForm()
 
+    return render(request, "contacts/contact_form.html", {
+        "form": form,
+        "heading": "Nowy kontakt",
+    })
+def contact_update(request, pk):
+    contact = get_object_or_404(Contact, pk=pk)
+    if request.method == "POST":
+    #instance=contact tells the form to update this row instead of creating one.
+        form = ContactForm(request.POST, instance=contact)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Kontakt został zakutalizowany.")
+            return redirect("contact_list")
+    else:
+        form = ContactForm(instance=contact)
+    return render(request, "contacts/contact_form.html", {
+        "form": form,
+        "heading": "Edycja kontaktu",
+    })
+
+def contact_delete(request, pk):
+    contact = get_object_or_404(Contact, pk=pk)
+
+    #Deleting only on POST - a GET request must never change data.
+    if request.method == "POST":
+        contact.delete()
+        messages.success(request, "Kontakt został usunięty")
+        return redirect("contact_list")
+    return render(request, "contacts/contact_confirm_delete.html", {
+        "contact": contact,
+    })

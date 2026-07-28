@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h3 mb-0">Kontakty</h1>
-    <span class="text-muted">{{ contacts|length }} rekordów</span>
+    <a href="{% url 'contact_create' %}" class="btn btn-primary">Dodaj kontakt</a>
 </div>
 
 <form method="get" class="row g-2 mb-4">
@@ -14,7 +14,7 @@
                placeholder="Szukaj po imieniu, nazwisku, mailu, telefonie lub mieście">
     </div>
     <div class="col-auto">
-        <button type="submit" class="btn btn-primary">Szukaj</button>
+        <button type="submit" class="btn btn-outline-primary">Szukaj</button>
         {% if query %}
             <a href="{% url 'contact_list' %}" class="btn btn-outline-secondary">Wyczyść</a>
         {% endif %}
@@ -38,6 +38,7 @@
                         <a href="?q={{ query|urlencode }}&sort={{ sort_by_date }}"
                            class="text-decoration-none text-dark">Data dodania</a>
                     </th>
+                    <th class="text-end">Akcje</th>
                 </tr>
             </thead>
             <tbody>
@@ -49,10 +50,16 @@
                         <td>{{ contact.city }}</td>
                         <td><span class="badge text-bg-secondary">{{ contact.status }}</span></td>
                         <td>{{ contact.created_at|date:"d.m.Y H:i" }}</td>
+                        <td class="text-end text-nowrap">
+                            <a href="{% url 'contact_update' contact.pk %}"
+                               class="btn btn-sm btn-outline-secondary">Edytuj</a>
+                            <a href="{% url 'contact_delete' contact.pk %}"
+                               class="btn btn-sm btn-outline-danger">Usuń</a>
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
                             {% if query %}
                                 Brak kontaktów pasujących do wyszukiwania.
                             {% else %}

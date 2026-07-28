@@ -1,0 +1,24 @@
+{% extends "contacts/base.html" %}
+
+{% block title %}Usuń kontakt{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h5 mb-3">Usunąć kontakt?</h1>
+                <p class="text-muted">
+                    Kontakt <strong>{{ contact }}</strong> ({{ contact.email }})
+                    zostanie trwale usunięty.
+                </p>
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Usuń</button>
+                    <a href="{% url 'contact_list' %}" class="btn btn-outline-secondary">Anuluj</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
