@@ -6,6 +6,10 @@ from django.http import JsonResponse
 from .models import Contact
 from .forms import ContactForm
 from .services import get_weather
+from .serializers import ContactListSerializer, ContactSerializer
+
+
+from rest_framework import viewsets
 
 #Whitelist of allowed sort values. User input is never passed to order_by() directly,
 # so an arbitrary query string cannot reach the database layer
@@ -105,3 +109,17 @@ def weather_api(request):
 
     return JsonResponse(weather)
 
+class ContactViewSet(viewsets.ModelViewSet):
+    """CRUD endpoints for contacts.
+
+    ModelViewSet provides list, create, retrieve, update and destroy actions,
+    which covers every endpoint required by the task.
+    """
+
+    queryset = Contact.objects.select_related("status")
+
+    def get_serializer_class(self):
+        # The list endpoint returns a narrower set of fields than create/update.
+        if self.action == "list":
+            return ContactListSerializer
+        return ContactSerializer
