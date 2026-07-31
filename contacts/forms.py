@@ -15,3 +15,20 @@ class ContactForm(forms.ModelForm):
 
         for name, field in self.fields.items():
             field.widget.attrs["class"] = "form-select" if name == "status" else "form-control"
+
+
+class ContactImportForm(forms.Form):
+    """Upload form for bulk contact import."""
+
+    csv_file = forms.FileField(
+        label="Plik CSV",
+        widget=forms.ClearableFileInput(attrs={"class": "form-control", "accept": ".csv"}),
+    )
+
+    def clean_csv_file(self):
+        uploaded = self.cleaned_data["csv_file"]
+        if not uploaded.name.lower().endswith(".csv"):
+            raise forms.ValidationError("Wybierz plik z rozszerzeniem .csv.")
+        if uploaded.size > 2 * 1024 * 1024:
+            raise forms.ValidationError("Plik nie może być większy niż 2 MB.")
+        return uploaded

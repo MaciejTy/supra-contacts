@@ -4,9 +4,10 @@ from django.contrib import messages
 from django.http import JsonResponse
 
 from .models import Contact
-from .forms import ContactForm
 from .services import get_weather
 from .serializers import ContactListSerializer, ContactSerializer
+from .forms import ContactForm, ContactImportForm
+from .importers import CsvImportError, import_contacts
 
 
 from rest_framework import viewsets
@@ -123,3 +124,26 @@ class ContactViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return ContactListSerializer
         return ContactSerializer
+
+def contact_import(request):
+    """Handle CSV upload and report per-row results."""
+    if request.method == "POST":
+        form = ContactImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                created, row_errors = import_contacts(form.cleaned_data["csv_file"])
+            except CsvImportError as error:
+                messages.error(request, str(error))
+            else:
+                if created:
+                    messages.success(request, f"Zaimportowano kontaktów: {created}.")
+                for row_error in row_errors[:10]:
+                    messages.warning(request, row_error)
+                if len(row_errors) > 10:
+                    messages.warning(request, f"Pominięto jeszcze {len(row_errors) - 10} wierszy.")
+                if created:
+                    return redirect("contact_list")
+    else:
+        form = ContactImportForm()
+
+    return render(request, "contacts/contact_import.html", {"form": form})

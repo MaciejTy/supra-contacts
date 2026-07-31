@@ -7,11 +7,14 @@ from . import views
 router = DefaultRouter()
 router.register("contacts", views.ContactViewSet, basename="contact")
 
+
+
 urlpatterns = [
     path("", views.contact_list, name="contact_list"),
     path("add/", views.contact_create, name="contact_create"),
     path("<int:pk>/edit/", views.contact_update, name="contact_update"),
     path("<int:pk>/delete/", views.contact_delete, name="contact_delete"),
     path("api/weather/", views.weather_api, name="weather_api"),
+    path("import/", views.contact_import, name="contact_import"),
     path("api/", include(router.urls)),
 ]

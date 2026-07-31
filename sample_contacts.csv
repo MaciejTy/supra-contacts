@@ -1,0 +1,6 @@
+first_name,last_name,phone_number,email,city,status
+Jan,Kowalski,501100200,jan.kowalski@example.com,Wrocław,nowy
+Maria,Nowak,501100201,maria.nowak@example.com,Poznań,w trakcie
+Piotr,Zieliński,501100202,piotr.zielinski@example.com,Szczecin,nowy
+Ewa,Lewandowska,501100203,ewa.lewandowska@example.com,Lublin,zagubiony
+Adam,Wójcik,501100204,adam.wojcik@example.com,Katowice,BŁĘDNY
