@@ -61,10 +61,12 @@ with no manual setup.
 python -m pytest
 ```
 
-Six tests covering the two pieces of logic with the most edge cases: the weather
-service (external calls are mocked, so tests don't depend on the network) and the CSV
-importer. They assert behaviour rather than output — the cache test checks that a
-second lookup makes no HTTP call at all, not just that it returns the right value.
+Twenty tests covering the parts with the most edge cases: the weather service (external
+calls are mocked, so tests don't depend on the network), the CSV importer, and the
+validation rules. They assert behaviour rather than output — the cache test checks that
+a second lookup makes no HTTP call at all, not just that it returns the right value, and
+the validation tests go through the REST API and a CSV upload rather than the browser
+form, since those are the paths that bypass the client-side rules.
 
 ## Features
 
@@ -117,9 +119,11 @@ Two levels, with different jobs:
   on the remaining fields. Errors appear when a field loses focus and clear as the
   value is corrected. Phone numbers accept spaces, dashes and an optional `+48` prefix,
   since rejecting `+48 501 234 567` would be hostile for no good reason.
-- **Server side** — `phone_number` and `email` are `unique=True` on the model, so
-  uniqueness is enforced by the database regardless of whether data arrived through the
-  web form, a CSV import or the REST API.
+- **Server side** — the same rules again, as model field validators: a phone format
+  regex accepting the same spellings the browser does, a minimum length on the name and
+  city fields, and `unique=True` on `phone_number` and `email`. Because they live on the
+  model rather than on the form, they apply identically to the web form, the CSV import
+  and the REST API.
 
 Client-side validation is a convenience, not a safeguard: JavaScript can be disabled or
 bypassed entirely, which is why nothing depends on it.
@@ -168,7 +172,10 @@ Three things keep the traffic down:
 
 1. **Server-side cache keyed by city**, not by contact. A hundred contacts living in
    five cities cost five API calls, not a hundred. Coordinates are cached for 30 days
-   since cities don't move; weather for 30 minutes.
+   since cities don't move; weather for 30 minutes. Cities that cannot be resolved at
+   all are cached too, for an hour — otherwise a single typo in a contact's city would
+   cost one Nominatim request on every page load. The TTL is short so that an API
+   outage doesn't blacklist a real city for a month.
 2. **Client-side deduplication** — the JavaScript collects unique cities from the table
    and issues one request per city regardless of row count.
 3. **Pagination** — only the cities visible on the current page are ever requested.
@@ -182,6 +189,9 @@ The weather functions return `None` instead of raising. An unreachable API, a ty
 city name or a timeout produces a dash in the weather column while everything else
 keeps working. Weather is a secondary feature and shouldn't be able to take down the
 contact list.
+
+Cache access is wrapped the same way. The cache is an optimisation, so an unreachable
+Redis degrades the lookup to an uncached one rather than turning it into a 500.
 
 ### API quirks worth documenting
 

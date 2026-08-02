@@ -23,16 +23,44 @@ REQUEST_TIMEOUT = 5
 GEOCODE_CACHE_TTL = 60 * 60 * 24 * 30  # coordinates do not change
 WEATHER_CACHE_TTL = 60 * 30  # weather does
 
+# A city that cannot be resolved is cached too, otherwise a single typo in a
+# contact's city costs one Nominatim request per page load forever. The TTL is
+# short so a genuine API outage does not blacklist a real city for a month.
+UNRESOLVED = "unresolved"
+UNRESOLVED_CACHE_TTL = 60 * 60
+
 
 def _cache_key(prefix, city):
     """Normalise the city name so 'Warszawa' and 'warszawa' share one entry."""
     return f"{prefix}:{city.strip().lower()}"
 
 
+def _cache_get(key):
+    """Read from the cache, treating an unavailable cache as a miss.
+
+    Caching is an optimisation; a broken Redis should slow the weather column
+    down, not take it out.
+    """
+    try:
+        return cache.get(key)
+    except Exception:
+        logger.warning("Cache read failed for the key %r", key, exc_info=True)
+        return None
+
+
+def _cache_set(key, value, ttl):
+    try:
+        cache.set(key, value, ttl)
+    except Exception:
+        logger.warning("Cache write failed for the key %r", key, exc_info=True)
+
+
 def geocode_city(city):
     """Return (latitude, longitude) for a city name, or None if it cannot be resolved."""
     key = _cache_key("geo", city)
-    cached = cache.get(key)
+    cached = _cache_get(key)
+    if cached == UNRESOLVED:
+        return None
     if cached is not None:
         return cached
 
@@ -50,17 +78,23 @@ def geocode_city(city):
         return None
 
     if not results:
+        _cache_set(key, UNRESOLVED, UNRESOLVED_CACHE_TTL)
         return None
 
-    coordinates = (float(results[0]["lat"]), float(results[0]["lon"]))
-    cache.set(key, coordinates, GEOCODE_CACHE_TTL)
+    try:
+        coordinates = (float(results[0]["lat"]), float(results[0]["lon"]))
+    except (KeyError, TypeError, ValueError):
+        logger.warning("Unexpected geocoding payload for the city %r", city)
+        return None
+
+    _cache_set(key, coordinates, GEOCODE_CACHE_TTL)
     return coordinates
 
 
 def get_weather(city):
     """Return current weather for a city as a dict, or None when unavailable."""
     key = _cache_key("weather", city)
-    cached = cache.get(key)
+    cached = _cache_get(key)
     if cached is not None:
         return cached
 
@@ -92,5 +126,5 @@ def get_weather(city):
         "humidity": current["relative_humidity_2m"],
         "wind_speed": current["wind_speed_10m"],
     }
-    cache.set(key, weather, WEATHER_CACHE_TTL)
+    _cache_set(key, weather, WEATHER_CACHE_TTL)
     return weather

@@ -44,3 +44,36 @@ def test_get_weather_returns_none_for_unknown_city(mock_get):
     mock_get.return_value.json.return_value = []
 
     assert get_weather("Nonexistentville") is None
+
+
+@patch("contacts.services.requests.get")
+def test_unresolvable_city_is_cached(mock_get):
+    """A typo in a city must not cost one Nominatim call per page load."""
+    mock_get.return_value.json.return_value = []
+
+    for _ in range(3):
+        assert get_weather("Nonexistentville") is None
+
+    assert mock_get.call_count == 1
+
+
+@patch("contacts.services.requests.get")
+def test_broken_cache_falls_back_to_a_direct_lookup(mock_get):
+    """An unreachable cache must slow the lookup down, not break it."""
+    mock_get.return_value.json.side_effect = [
+        [{"lat": "54.35", "lon": "18.64"}],
+        {
+            "current": {
+                "temperature_2m": 18.2,
+                "relative_humidity_2m": 70,
+                "wind_speed_10m": 7.1,
+            }
+        },
+    ]
+
+    with patch.object(cache, "get", side_effect=ConnectionError), patch.object(
+        cache, "set", side_effect=ConnectionError
+    ):
+        weather = get_weather("Gdańsk")
+
+    assert weather == {"temperature": 18.2, "humidity": 70, "wind_speed": 7.1}

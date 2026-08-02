@@ -184,6 +184,12 @@ def weather_api(request):
     if not city:
         return JsonResponse({"error": "Missing city parameter."}, status=400)
 
+    # The endpoint is public and every distinct value becomes a cache entry and
+    # an outbound Nominatim request, so anything longer than a real city name is
+    # rejected before it reaches either.
+    if len(city) > Contact._meta.get_field("city").max_length:
+        return JsonResponse({"error": "City name is too long."}, status=400)
+
     weather = get_weather(city)
     if weather is None:
         return JsonResponse({"error": "Weather unavailable."}, status=503)
