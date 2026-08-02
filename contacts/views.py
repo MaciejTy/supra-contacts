@@ -12,11 +12,12 @@ from .importers import CsvImportError, import_contacts
 
 from rest_framework import viewsets
 
-#Whitelist of allowed sort values. User input is never passed to order_by() directly,
+# Whitelist of allowed sort values. User input is never passed to order_by() directly,
 # so an arbitrary query string cannot reach the database layer
 
-SORT_OPTIONS =["last_name", "-last_name", "created_at", "-created_at}"]
+SORT_OPTIONS = ["last_name", "-last_name", "created_at", "-created_at}"]
 DEFAULT_SORT = "last_name"
+
 
 def contact_list(request):
     """Display all contacts with optional sorting."""
@@ -27,8 +28,8 @@ def contact_list(request):
     if sort not in SORT_OPTIONS:
         sort = DEFAULT_SORT
 
-    #select related() fetches the related status in the same SQL query,
-    #instead of one extra query per contact when rendering the table.
+    # select related() fetches the related status in the same SQL query,
+    # instead of one extra query per contact when rendering the table.
 
     contacts = Contact.objects.select_related("status")
 
@@ -46,11 +47,12 @@ def contact_list(request):
         "contacts": contacts,
         "query": query,
         "sort": sort,
-        #Precomputed targets for the sort links, so the template stays simple.
+        # Precomputed targets for the sort links, so the template stays simple.
         "sort_by_name": "-last_name" if sort == "last_name" else "last_name",
         "sort_by_date": "-created_at" if sort == "created_at" else "created_at",
     }
     return render(request, "contacts/contact_list.html", context)
+
 
 def contact_create(request):
     """Handle the new contact form: render it on GET, save it on POST."""
@@ -63,14 +65,20 @@ def contact_create(request):
     else:
         form = ContactForm()
 
-    return render(request, "contacts/contact_form.html", {
-        "form": form,
-        "heading": "Nowy kontakt",
-    })
+    return render(
+        request,
+        "contacts/contact_form.html",
+        {
+            "form": form,
+            "heading": "Nowy kontakt",
+        },
+    )
+
+
 def contact_update(request, pk):
     contact = get_object_or_404(Contact, pk=pk)
     if request.method == "POST":
-    #instance=contact tells the form to update this row instead of creating one.
+        # instance=contact tells the form to update this row instead of creating one.
         form = ContactForm(request.POST, instance=contact)
         if form.is_valid():
             form.save()
@@ -78,22 +86,32 @@ def contact_update(request, pk):
             return redirect("contact_list")
     else:
         form = ContactForm(instance=contact)
-    return render(request, "contacts/contact_form.html", {
-        "form": form,
-        "heading": "Edycja kontaktu",
-    })
+    return render(
+        request,
+        "contacts/contact_form.html",
+        {
+            "form": form,
+            "heading": "Edycja kontaktu",
+        },
+    )
+
 
 def contact_delete(request, pk):
     contact = get_object_or_404(Contact, pk=pk)
 
-    #Deleting only on POST - a GET request must never change data.
+    # Deleting only on POST - a GET request must never change data.
     if request.method == "POST":
         contact.delete()
         messages.success(request, "Kontakt został usunięty")
         return redirect("contact_list")
-    return render(request, "contacts/contact_confirm_delete.html", {
-        "contact": contact,
-    })
+    return render(
+        request,
+        "contacts/contact_confirm_delete.html",
+        {
+            "contact": contact,
+        },
+    )
+
 
 def weather_api(request):
     """Return current weather for a singe city as JSON.
@@ -110,6 +128,7 @@ def weather_api(request):
 
     return JsonResponse(weather)
 
+
 class ContactViewSet(viewsets.ModelViewSet):
     """CRUD endpoints for contacts.
 
@@ -124,6 +143,7 @@ class ContactViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return ContactListSerializer
         return ContactSerializer
+
 
 def contact_import(request):
     """Handle CSV upload and report per-row results."""
@@ -140,7 +160,9 @@ def contact_import(request):
                 for row_error in row_errors[:10]:
                     messages.warning(request, row_error)
                 if len(row_errors) > 10:
-                    messages.warning(request, f"Pominięto jeszcze {len(row_errors) - 10} wierszy.")
+                    messages.warning(
+                        request, f"Pominięto jeszcze {len(row_errors) - 10} wierszy."
+                    )
                 if created:
                     return redirect("contact_list")
     else:

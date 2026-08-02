@@ -8,7 +8,6 @@ router = DefaultRouter()
 router.register("contacts", views.ContactViewSet, basename="contact")
 
 
-
 urlpatterns = [
     path("", views.contact_list, name="contact_list"),
     path("add/", views.contact_create, name="contact_create"),

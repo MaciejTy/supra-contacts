@@ -20,12 +20,14 @@ USER_AGENT = "supra-contacts/1.0 (recruitment task)"
 
 REQUEST_TIMEOUT = 5
 
-GEOCODE_CACHE_TTL = 60 * 60 * 24 * 30 # coordinates do not change
-WEATHER_CACHE_TTL = 60 * 30 # weather does
+GEOCODE_CACHE_TTL = 60 * 60 * 24 * 30  # coordinates do not change
+WEATHER_CACHE_TTL = 60 * 30  # weather does
+
 
 def _cache_key(prefix, city):
     """Normalise the city name so 'Warszawa' and 'warszawa' share one entry."""
     return f"{prefix}:{city.strip().lower()}"
+
 
 def geocode_city(city):
     """Return (latitude, longitude) for a city name, or None if it cannot be resolved."""
@@ -35,11 +37,12 @@ def geocode_city(city):
         return cached
 
     try:
-        response = requests.get(NOMINATIM_URL,
-                                params={"q": city, "format": "json", "limit": 1},
-                                headers={"User-Agent": USER_AGENT},
-                                timeout=REQUEST_TIMEOUT
-                                )
+        response = requests.get(
+            NOMINATIM_URL,
+            params={"q": city, "format": "json", "limit": 1},
+            headers={"User-Agent": USER_AGENT},
+            timeout=REQUEST_TIMEOUT,
+        )
         response.raise_for_status()
         results = response.json()
     except (requests.RequestException, ValueError):
@@ -52,6 +55,7 @@ def geocode_city(city):
     coordinates = (float(results[0]["lat"]), float(results[0]["lon"]))
     cache.set(key, coordinates, GEOCODE_CACHE_TTL)
     return coordinates
+
 
 def get_weather(city):
     """Return current weather for a city as a dict, or None when unavailable."""
@@ -66,15 +70,17 @@ def get_weather(city):
     latitude, longitude = coordinates
 
     try:
-        response = requests.get(OPEN_METEO_URL,
-                                params={"latitude": latitude,
-                                        "longitude": longitude,
-                                        # current_weather=true does not include humidity,
-                                        # so the fields required by the task are requested explicity
-                                         "current": "temperature_2m,relative_humidity_2m,wind_speed_10m",
-                                        },
-                                timeout=REQUEST_TIMEOUT
-                                )
+        response = requests.get(
+            OPEN_METEO_URL,
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                # current_weather=true does not include humidity,
+                # so the fields required by the task are requested explicity
+                "current": "temperature_2m,relative_humidity_2m,wind_speed_10m",
+            },
+            timeout=REQUEST_TIMEOUT,
+        )
         response.raise_for_status()
         current = response.json()["current"]
     except (requests.RequestException, ValueError, KeyError):

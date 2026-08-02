@@ -6,7 +6,14 @@ import io
 from .forms import ContactForm
 from .models import ContactStatus
 
-REQUIRED_COLUMNS = ["first_name", "last_name", "phone_number", "email", "city", "status"]
+REQUIRED_COLUMNS = [
+    "first_name",
+    "last_name",
+    "phone_number",
+    "email",
+    "city",
+    "status",
+]
 
 
 class CsvImportError(Exception):
@@ -27,7 +34,9 @@ def import_contacts(uploaded_file):
 
     reader = csv.DictReader(io.StringIO(text))
 
-    missing = [name for name in REQUIRED_COLUMNS if name not in (reader.fieldnames or [])]
+    missing = [
+        name for name in REQUIRED_COLUMNS if name not in (reader.fieldnames or [])
+    ]
     if missing:
         raise CsvImportError(f"W pliku brakuje kolumn: {', '.join(missing)}.")
 
