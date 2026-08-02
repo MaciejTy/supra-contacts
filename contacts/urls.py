@@ -16,4 +16,5 @@ urlpatterns = [
     path("api/weather/", views.weather_api, name="weather_api"),
     path("import/", views.contact_import, name="contact_import"),
     path("api/", include(router.urls)),
+    path("export/", views.contact_export, name="contact_export"),
 ]

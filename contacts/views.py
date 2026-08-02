@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.db.models import Q
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 
 from .models import Contact
 from .services import get_weather
@@ -9,6 +9,7 @@ from .serializers import ContactListSerializer, ContactSerializer
 from .forms import ContactForm, ContactImportForm
 from .importers import CsvImportError, import_contacts
 
+import csv
 
 from rest_framework import viewsets
 
@@ -169,3 +170,27 @@ def contact_import(request):
         form = ContactImportForm()
 
     return render(request, "contacts/contact_import.html", {"form": form})
+
+
+def contact_export(request):
+    """Export all contacts as CSV, using the same column layout as the importer."""
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="contacts.csv"'
+
+    # BOM so Excel opens the file as UTF-8 instead of mangling Polish characters.
+    response.write("\ufeff")
+
+    writer = csv.writer(response)
+    writer.writerow(["first_name", "last_name", "phone_number", "email", "city", "status"])
+
+    for contact in Contact.objects.select_related("status"):
+        writer.writerow([
+            contact.first_name,
+            contact.last_name,
+            contact.phone_number,
+            contact.email,
+            contact.city,
+            contact.status.name,
+        ])
+
+    return response
