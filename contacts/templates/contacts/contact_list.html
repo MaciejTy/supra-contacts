@@ -1,4 +1,5 @@
 {% extends "contacts/base.html" %}
+{% load query_params %}
 
 {% block title %}Kontakty{% endblock %}
 
@@ -31,7 +32,7 @@
             <thead class="table-light">
                 <tr>
                     <th>
-                        <a href="?q={{ query|urlencode }}&sort={{ sort_by_name }}"
+                        <a href="{% url_with sort=sort_by_name page=1 %}"
                            class="text-decoration-none text-dark">Nazwisko i imię</a>
                     </th>
                     <th>Telefon</th>
@@ -40,7 +41,7 @@
                     <th>Status</th>
                     <th>Pogoda</th>
                     <th>
-                        <a href="?q={{ query|urlencode }}&sort={{ sort_by_date }}"
+                        <a href="{% url_with sort=sort_by_date page=1 %}"
                            class="text-decoration-none text-dark">Data dodania</a>
                     </th>
                     <th class="text-end">Akcje</th>
@@ -78,6 +79,40 @@
         </table>
     </div>
 </div>
+
+{% if page.paginator.num_pages > 1 %}
+    <nav class="d-flex justify-content-between align-items-center mt-3">
+        <span class="text-muted small">
+            Strona {{ page.number }} z {{ page.paginator.num_pages }}
+            ({{ page.paginator.count }} kontaktów)
+        </span>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if not page.has_previous %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{% if page.has_previous %}{% url_with page=page.previous_page_number %}{% else %}#{% endif %}">
+                    Poprzednia
+                </a>
+            </li>
+            {% for number in page.paginator.page_range %}
+                {% if number == page.number %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ number }}</span>
+                    </li>
+                {% elif number > page.number|add:-3 and number < page.number|add:3 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{% url_with page=number %}">{{ number }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not page.has_next %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{% if page.has_next %}{% url_with page=page.next_page_number %}{% else %}#{% endif %}">
+                    Następna
+                </a>
+            </li>
+        </ul>
+    </nav>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

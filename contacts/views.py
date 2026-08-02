@@ -1,37 +1,35 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.db.models import Q
-from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
-
-from .models import Contact
-from .services import get_weather
-from .serializers import ContactListSerializer, ContactSerializer
-from .forms import ContactForm, ContactImportForm
-from .importers import CsvImportError, import_contacts
-
 import csv
 
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from rest_framework import viewsets
 
-# Whitelist of allowed sort values. User input is never passed to order_by() directly,
-# so an arbitrary query string cannot reach the database layer
+from .forms import ContactForm, ContactImportForm
+from .importers import CsvImportError, import_contacts
+from .models import Contact
+from .serializers import ContactListSerializer, ContactSerializer
+from .services import get_weather
 
-SORT_OPTIONS = ["last_name", "-last_name", "created_at", "-created_at}"]
+# Whitelist of allowed sort values. User input is never passed to order_by()
+# directly, so an arbitrary query string cannot reach the database layer.
+SORT_OPTIONS = ["last_name", "-last_name", "created_at", "-created_at"]
 DEFAULT_SORT = "last_name"
+CONTACTS_PER_PAGE = 20
 
 
 def contact_list(request):
-    """Display all contacts with optional sorting."""
-
+    """Display all contacts with optional search, sorting and pagination."""
     query = request.GET.get("q", "").strip()
     sort = request.GET.get("sort", DEFAULT_SORT)
 
     if sort not in SORT_OPTIONS:
         sort = DEFAULT_SORT
 
-    # select related() fetches the related status in the same SQL query,
+    # select_related() fetches the related status in the same SQL query,
     # instead of one extra query per contact when rendering the table.
-
     contacts = Contact.objects.select_related("status")
 
     if query:
@@ -42,15 +40,21 @@ def contact_list(request):
             | Q(phone_number__icontains=query)
             | Q(city__icontains=query)
         )
+
     contacts = contacts.order_by(sort)
 
+    paginator = Paginator(contacts, CONTACTS_PER_PAGE)
+    # get_page() clamps out-of-range and non-numeric values instead of raising.
+    page = paginator.get_page(request.GET.get("page"))
+
     context = {
-        "contacts": contacts,
+        "page": page,
+        "contacts": page.object_list,
         "query": query,
         "sort": sort,
         # Precomputed targets for the sort links, so the template stays simple.
         "sort_by_name": "-last_name" if sort == "last_name" else "last_name",
-        "sort_by_date": "-created_at" if sort == "created_at" else "created_at",
+        "sort_by_date": "created_at" if sort == "-created_at" else "-created_at",
     }
     return render(request, "contacts/contact_list.html", context)
 
@@ -61,7 +65,7 @@ def contact_create(request):
         form = ContactForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, "Kontakt został dodany")
+            messages.success(request, "Kontakt został dodany.")
             return redirect("contact_list")
     else:
         form = ContactForm()
@@ -78,15 +82,17 @@ def contact_create(request):
 
 def contact_update(request, pk):
     contact = get_object_or_404(Contact, pk=pk)
+
     if request.method == "POST":
         # instance=contact tells the form to update this row instead of creating one.
         form = ContactForm(request.POST, instance=contact)
         if form.is_valid():
             form.save()
-            messages.success(request, "Kontakt został zakutalizowany.")
+            messages.success(request, "Kontakt został zaktualizowany.")
             return redirect("contact_list")
     else:
         form = ContactForm(instance=contact)
+
     return render(
         request,
         "contacts/contact_form.html",
@@ -103,8 +109,9 @@ def contact_delete(request, pk):
     # Deleting only on POST - a GET request must never change data.
     if request.method == "POST":
         contact.delete()
-        messages.success(request, "Kontakt został usunięty")
+        messages.success(request, "Kontakt został usunięty.")
         return redirect("contact_list")
+
     return render(
         request,
         "contacts/contact_confirm_delete.html",
@@ -112,38 +119,6 @@ def contact_delete(request, pk):
             "contact": contact,
         },
     )
-
-
-def weather_api(request):
-    """Return current weather for a singe city as JSON.
-
-    Called once per unique city by the contact list page, not once per contact.
-    """
-    city = request.GET.get("city", "").strip()
-    if not city:
-        return JsonResponse({"error": "Missing city parameter."}, status=400)
-
-    weather = get_weather(city)
-    if weather is None:
-        return JsonResponse({"error": "Weather unavailable."}, status=503)
-
-    return JsonResponse(weather)
-
-
-class ContactViewSet(viewsets.ModelViewSet):
-    """CRUD endpoints for contacts.
-
-    ModelViewSet provides list, create, retrieve, update and destroy actions,
-    which covers every endpoint required by the task.
-    """
-
-    queryset = Contact.objects.select_related("status")
-
-    def get_serializer_class(self):
-        # The list endpoint returns a narrower set of fields than create/update.
-        if self.action == "list":
-            return ContactListSerializer
-        return ContactSerializer
 
 
 def contact_import(request):
@@ -181,16 +156,52 @@ def contact_export(request):
     response.write("\ufeff")
 
     writer = csv.writer(response)
-    writer.writerow(["first_name", "last_name", "phone_number", "email", "city", "status"])
+    writer.writerow(
+        ["first_name", "last_name", "phone_number", "email", "city", "status"]
+    )
 
     for contact in Contact.objects.select_related("status"):
-        writer.writerow([
-            contact.first_name,
-            contact.last_name,
-            contact.phone_number,
-            contact.email,
-            contact.city,
-            contact.status.name,
-        ])
+        writer.writerow(
+            [
+                contact.first_name,
+                contact.last_name,
+                contact.phone_number,
+                contact.email,
+                contact.city,
+                contact.status.name,
+            ]
+        )
 
     return response
+
+
+def weather_api(request):
+    """Return current weather for a single city as JSON.
+
+    Called once per unique city by the contact list page, not once per contact.
+    """
+    city = request.GET.get("city", "").strip()
+    if not city:
+        return JsonResponse({"error": "Missing city parameter."}, status=400)
+
+    weather = get_weather(city)
+    if weather is None:
+        return JsonResponse({"error": "Weather unavailable."}, status=503)
+
+    return JsonResponse(weather)
+
+
+class ContactViewSet(viewsets.ModelViewSet):
+    """CRUD endpoints for contacts.
+
+    ModelViewSet provides list, create, retrieve, update and destroy actions,
+    which covers every endpoint required by the task.
+    """
+
+    queryset = Contact.objects.select_related("status")
+
+    def get_serializer_class(self):
+        # The list endpoint returns a narrower set of fields than create/update.
+        if self.action == "list":
+            return ContactListSerializer
+        return ContactSerializer
