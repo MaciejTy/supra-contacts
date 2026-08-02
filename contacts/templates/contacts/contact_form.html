@@ -9,7 +9,7 @@
             <div class="card-body p-4">
                 <h1 class="h4 mb-4">{{ heading }}</h1>
 
-                <form method="post" novalidate>
+                <form method="post" novalidate id="contact-form">
                     {% csrf_token %}
 
                     {% for field in form %}
@@ -18,6 +18,7 @@
                                 {{ field.label }}
                             </label>
                             {{ field }}
+                            <div class="invalid-feedback"></div>
                             {% if field.errors %}
                                 <div class="text-danger small mt-1">
                                     {{ field.errors|striptags }}
@@ -35,4 +36,69 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Client-side validation mirrors the server rules for a faster feedback loop.
+// The server still validates everything: JavaScript can be disabled or bypassed.
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("contact-form");
+    if (!form) return;
+
+    const rules = {
+        first_name: value => value.length >= 2 || "Imię musi mieć co najmniej 2 znaki.",
+        last_name: value => value.length >= 2 || "Nazwisko musi mieć co najmniej 2 znaki.",
+        city: value => value.length >= 2 || "Podaj nazwę miasta.",
+        email: value =>
+            /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(value) || "Podaj poprawny adres e-mail.",
+        phone_number: value => {
+            // Accept spaces, dashes and an optional +48 prefix, then count digits.
+            const digits = value.replace(/[\s-]/g, "").replace(/^\+?48/, "");
+            if (!/^\d+$/.test(digits)) {
+                return "Numer może zawierać tylko cyfry, spacje, myślniki i prefiks +48.";
+            }
+            return digits.length === 9 || "Numer telefonu musi mieć 9 cyfr.";
+        },
+    };
+
+    const setError = (input, message) => {
+        const feedback = input.parentElement.querySelector(".invalid-feedback");
+        input.classList.toggle("is-invalid", Boolean(message));
+        if (feedback) {
+            feedback.textContent = message || "";
+        }
+    };
+
+    const validateField = name => {
+        const input = form.querySelector(`[name="${name}"]`);
+        if (!input) return true;
+
+        const result = rules[name](input.value.trim());
+        // A rule returns true when valid, or a message string when not.
+        setError(input, result === true ? "" : result);
+        return result === true;
+    };
+
+    Object.keys(rules).forEach(name => {
+        const input = form.querySelector(`[name="${name}"]`);
+        if (!input) return;
+        input.addEventListener("blur", () => validateField(name));
+        input.addEventListener("input", () => {
+            if (input.classList.contains("is-invalid")) {
+                validateField(name);
+            }
+        });
+    });
+
+    form.addEventListener("submit", event => {
+        // every() would short-circuit, so map() first to validate all fields.
+        const results = Object.keys(rules).map(validateField);
+        if (results.includes(false)) {
+            event.preventDefault();
+            form.querySelector(".is-invalid")?.focus();
+        }
+    });
+});
+</script>
 {% endblock %}
