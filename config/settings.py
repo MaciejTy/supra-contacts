@@ -78,14 +78,16 @@ WSGI_APPLICATION = "config.wsgi.application"
 REDIS_URL = os.environ.get("REDIS_URL")
 
 CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": REDIS_URL,
-    }
-    if REDIS_URL
-    else {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-    }
+    "default": (
+        {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+        }
+        if REDIS_URL
+        else {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    )
 }
 
 DATABASES = {
